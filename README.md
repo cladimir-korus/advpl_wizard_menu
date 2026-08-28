@@ -4,11 +4,11 @@ Assistente em AdvPL para localizar referências de programas em múltiplos menus
 
 O projeto é desenvolvido pela Korus Consultoria com a proposta de distribuição gratuita do código original.
 
-> **Status: em desenvolvimento.** A versão atual implementa a interface inicial e a validação da origem da pesquisa. A leitura dos arquivos, a pesquisa nos menus, o backup e a atualização das tabelas ainda não foram implementados.
+> **Status: em desenvolvimento.** A versão atual implementa a seleção da origem, a leitura dos programas, a pesquisa das ocorrências e a seleção dos itens encontrados. O backup e a atualização das tabelas ainda não foram implementados.
 
 ## Funcionalidades disponíveis
 
-- Inicialização do ambiente do Configurador (`SIGACFG`).
+- Inicialização do ambiente `SIGACOM`.
 - Interface em etapas baseada em `FWWizardControl`.
 - Tela de apresentação do assistente.
 - Escolha mutuamente exclusiva entre duas origens:
@@ -17,14 +17,17 @@ O projeto é desenvolvido pela Korus Consultoria com a proposta de distribuiçã
 - Seleção de arquivo local ou localizado em unidade de rede pelo SmartClient.
 - Validação da existência do arquivo informado.
 - Validação do programa no RPO atual por meio de `FindFunction()`.
-- Reconhecimento do nome com ou sem a extensão `.PRW` e tentativa automática com o prefixo `U_`.
+- Reconhecimento do nome com ou sem as extensões `.PRW`/`.TLPP` e tentativa automática com o prefixo `U_`.
+- Leitura de programas da primeira coluna de arquivos CSV e de nomes `.PRW`/`.TLPP` presentes em qualquer coluna.
+- Cópia temporária do arquivo do SmartClient para o AppServer durante a leitura.
+- Pesquisa somente-leitura nas tabelas de infraestrutura dos menus.
+- Montagem da localização hierárquica de cada ocorrência em português.
+- Exclusão dos registros logicamente apagados e dos menus de backup `#BKP_%`.
+- Terceira etapa com as colunas de seleção, programa, menu e localização.
+- Seleção individual e ações para selecionar todos, deselecionar todos e inverter a seleção.
 
 ## Funcionalidades planejadas
 
-- Definir e documentar o formato aceito para CSV e `_contents.txt`.
-- Ler e normalizar os programas encontrados no arquivo.
-- Pesquisar ocorrências nas tabelas de menus.
-- Exibir os menus e itens encontrados para seleção.
 - Informar a nova referência que substituirá o programa atual.
 - Gerar backup completo antes da alteração.
 - Atualizar somente as ocorrências confirmadas.
@@ -35,10 +38,11 @@ O projeto é desenvolvido pela Korus Consultoria com a proposta de distribuiçã
 
 ```text
 U_UWIZMENU
-└─ prepara o ambiente SIGACFG
+└─ prepara o ambiente SIGACOM
    └─ executa U_WIZMENU
       ├─ Passo 1: apresentação
-      └─ Passo 2: seleção e validação da origem
+      ├─ Passo 2: seleção e validação da origem
+      └─ Passo 3: pesquisa e seleção das ocorrências nos menus
 ```
 
 `UWizMenu()` funciona como inicializador. A rotina principal do assistente é `WIZMENU()`, publicada no RPO como `U_WIZMENU`.
@@ -47,9 +51,10 @@ U_UWIZMENU
 
 - Ambiente TOTVS Protheus devidamente licenciado.
 - AppServer, SmartClient e RPO acessíveis.
-- Ambiente de compilação AdvPL com os includes `Protheus.ch` e `Totvs.ch`.
+- Ambiente de compilação AdvPL com os includes `Protheus.ch`, `Totvs.ch` e `TopConn.ch`.
 - Framework compatível com `FWWizardControl`, disponível na documentação da TOTVS a partir da release 12.1.6.
 - Permissão do SmartClient para acessar o arquivo local ou a unidade de rede selecionada.
+- Permissão de leitura das tabelas `MPMENU_*` pelo DBAccess e de criação temporária sob o RootPath do AppServer.
 
 Para as funcionalidades futuras de alteração, também serão necessários acesso autorizado às tabelas de menus, ambiente de homologação e uma estratégia de backup validada.
 
@@ -57,11 +62,12 @@ Para as funcionalidades futuras de alteração, também serão necessários aces
 
 1. Adicione `WIZMENU.prw` ao workspace AdvPL.
 2. Compile o fonte no RPO do ambiente desejado.
-3. Execute `U_UWIZMENU` para criar o ambiente `SIGACFG` e abrir o assistente.
+3. Execute `U_UWIZMENU` para criar o ambiente `SIGACOM` e abrir o assistente.
 4. Em um ambiente já preparado, a rotina principal pode ser chamada por `U_WIZMENU`.
-5. Escolha exatamente uma origem e avance para validar a entrada.
+5. Escolha exatamente uma origem e avance para pesquisar os menus.
+6. No terceiro passo, marque as ocorrências desejadas individualmente ou use os três botões de seleção em massa.
 
-Nesta versão, o processamento termina após a validação da origem. Nenhuma tabela é consultada ou alterada.
+Nesta versão, as tabelas de menu são apenas consultadas. A conclusão do assistente não altera registros.
 
 ## Origens da pesquisa
 
@@ -72,11 +78,26 @@ O seletor aceita:
 - `*.csv`;
 - `*_contents.txt`.
 
-O caminho absoluto é validado no SmartClient. O esquema do CSV e a leitura efetiva dos arquivos ainda fazem parte do roadmap.
+O caminho absoluto é validado no SmartClient. Durante a leitura, o arquivo é copiado para uma pasta temporária isolada por thread no AppServer e removido em seguida.
+
+No CSV, a primeira coluna é tratada como nome do programa. Em qualquer coluna também são reconhecidos caminhos ou nomes terminados em `.PRW` ou `.TLPP`. Os delimitadores aceitos são ponto e vírgula, vírgula, barra vertical e tabulação. Linhas de cabeçalho ou valores que não formem um identificador AdvPL válido são ignorados.
 
 ### Programa informado manualmente
 
-O nome é normalizado em maiúsculas e pode ser informado com ou sem `.PRW`. A rotina verifica sua disponibilidade no RPO atual e, quando necessário, também procura a variante com o prefixo `U_`.
+O nome é normalizado em maiúsculas e pode ser informado com ou sem `.PRW`/`.TLPP`. A rotina verifica sua disponibilidade no RPO atual e, quando necessário, também procura a variante com o prefixo `U_`.
+
+## Resultado da pesquisa
+
+Cada ocorrência é apresentada separadamente, mesmo quando o mesmo programa aparece mais de uma vez em um menu. O browse contém:
+
+| Coluna | Conteúdo |
+| --- | --- |
+| Seleção | Marca da ocorrência que poderá ser processada em uma etapa futura. |
+| Programa | Função armazenada em `MPMENU_FUNCTION.F_FUNCTION`. |
+| Menu | Nome armazenado em `MPMENU_MENU.M_NAME`. |
+| Localização | Caminho formado pelas descrições dos itens, como `Atualizações > Cadastros > Produtos`. |
+
+As ações do browse alteram apenas a marca em memória; não atualizam as tabelas.
 
 ## Modelo de dados dos menus
 
@@ -126,7 +147,9 @@ O relatório contém metadados extraídos de um ambiente Protheus, incluindo fun
 ## Referências técnicas
 
 - [FWWizardControl — TOTVS TDN](https://tdn.totvs.com/display/framework/FWWizardControl)
+- [FWBrowse — TOTVS TDN](https://tdn.totvs.com/display/framework/FwBrowse)
 - [cGetFile — TOTVS TDN](https://tdn.totvs.com/display/tec/cGetFile)
+- [CpyT2S — TOTVS TDN](https://tdn.totvs.com/display/tec/CpyT2S)
 - [FindFunction — TOTVS TDN](https://tdn.totvs.com/display/tec/Findfunction)
 - [Configurando Menus — TOTVS TDN](https://tdn.totvs.com/pages/viewpage.action?pageId=306855041)
 
