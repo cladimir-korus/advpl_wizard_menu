@@ -123,21 +123,6 @@ Alterações diretas nas tabelas de menu podem afetar o acesso dos usuários e a
 
 O relatório contém metadados extraídos de um ambiente Protheus, incluindo funções, traduções, hierarquia, caminhos XNU e menus de backup. Ele não deve fazer parte de uma distribuição pública até que sua procedência, titularidade e autorização de redistribuição tenham sido confirmadas. A licença do código original não concede direitos sobre dados ou materiais de terceiros.
 
-## Licença recomendada
-
-Para a distribuição pública do código original, a recomendação é a **MIT License**. Ela permite uso, modificação e redistribuição, inclusive em ambientes comerciais e proprietários, desde que o aviso de copyright e o texto da licença sejam preservados.
-
-Antes da publicação:
-
-1. confirme que a Korus Consultoria é titular ou está autorizada a licenciar o código;
-2. exclua `tabelas.rpt` do pacote público ou obtenha autorização expressa para distribuí-lo;
-3. adicione o texto integral da licença MIT em um arquivo `LICENSE`, com o titular correto;
-4. deixe explícito que a licença cobre somente o código e a documentação originais.
-
-O TOTVS Protheus, o AdvPL, os includes, as bibliotecas, o RPO e os demais componentes da plataforma permanecem sujeitos às licenças de seus respectivos titulares. Este é um projeto independente, sem afiliação ou endosso da TOTVS.
-
-Consulte o [texto oficial da licença MIT](https://opensource.org/license/mit).
-
 ## Referências técnicas
 
 - [FWWizardControl — TOTVS TDN](https://tdn.totvs.com/display/framework/FWWizardControl)
