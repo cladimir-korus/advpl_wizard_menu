@@ -37,6 +37,10 @@ User Function WIZMENU()
 	Local cProgram     := Space(128)
 	Local aMenus       := {}
 	Local oMenuBrowse  := Nil
+	Private aWmTargets    := {}
+	Private oWmTgtBrowse  := Nil
+	Private cWmPrefix     := Space(32)
+	Private cWmSuffix     := Space(32)
 
 	oWizard := FWWizardControl():New(Nil, {650, 900})
 	oWizard:ActiveUISteps()
@@ -64,9 +68,19 @@ User Function WIZMENU()
 	oStep := oWizard:AddStep("MENUS", ;
 		{|oPanel| WmMenus(oPanel, @aMenus, @oMenuBrowse)})
 	oStep:SetStepDescription("Menus encontrados")
+	oStep:SetNextTitle("Avancar")
+	oStep:SetPrevTitle("Voltar")
+	oStep:SetNextAction({|| WmNextMenu(aMenus)})
+	oStep:SetPrevAction({|| .T.})
+	oStep:SetCancelAction({|| .T.})
+
+    // Passo 4 - Definicao das novas funcoes e dos tipos de programa
+	oStep := oWizard:AddStep("TARGETS", ;
+		{|oPanel| WmTargets(oPanel)})
+	oStep:SetStepDescription("Novas funcoes")
 	oStep:SetNextTitle("Concluir")
 	oStep:SetPrevTitle("Voltar")
-	oStep:SetNextAction({|| .T.})
+	oStep:SetNextAction({|| WmValTgts()})
 	oStep:SetPrevAction({|| .T.})
 	oStep:SetCancelAction({|| .T.})
 
@@ -257,7 +271,7 @@ Static Function WmMenus(oPanel, aMenus, oBrowse)
 
     // O painel possui margem lateral de 10 e o browse ocupa toda a sua area.
 	oGridPanel := TPanel():New(36, 10, "", oPanel,,,, ;
-		CLR_BLACK, CLR_WHITE, nGridWidth, 116, .F., .F.)
+		CLR_BLACK, CLR_WHITE, nGridWidth, 142, .F., .F.)
 
 	oBrowse := FWBrowse():New()
 	oBrowse:SetOwner(oGridPanel)
@@ -285,16 +299,297 @@ Static Function WmMenus(oPanel, aMenus, oBrowse)
 
 	oBrowse:Activate()
 
-	oButton := TButton():New(162, 10, "Selecionar todos", ;
+	oButton := TButton():New(184, 10, "Selecionar todos", ;
 		oPanel, {|| WmSetSel(aMenus, oBrowse, 1)}, ;
 		100, 12,,,.F.,.T.,.F.,,.F.,,,.F.)
-	oButton := TButton():New(162, 120, "Deselecionar todos", ;
+	oButton := TButton():New(184, 120, "Deselecionar todos", ;
 		oPanel, {|| WmSetSel(aMenus, oBrowse, 2)}, ;
 		100, 12,,,.F.,.T.,.F.,,.F.,,,.F.)
-	oButton := TButton():New(162, 230, "Inverter selecao", ;
+	oButton := TButton():New(184, 230, "Inverter selecao", ;
 		oPanel, {|| WmSetSel(aMenus, oBrowse, 3)}, ;
 		110, 12,,,.F.,.T.,.F.,,.F.,,,.F.)
 Return Nil
+
+/*/{Protheus.doc} WmTargets
+Constroi o passo de definicao das novas funcoes e dos tipos de programa.
+
+As variaveis privadas sao utilizadas pelo ReadVar das colunas editaveis.
+
+@param oPanel, object, painel disponibilizado pelo FWWizardControl
+/*/
+Static Function WmTargets(oPanel)
+	Local oGridPanel := Nil
+	Local oGetPrefix := Nil
+	Local oGetSuffix := Nil
+	Local oSay       := Nil
+	Local oFontTitle := TFont():New("Arial",, -14, .T.)
+	Local oFontBody  := TFont():New("Arial",, -10, .F.)
+	Local nGridWidth := Int(oPanel:nClientWidth / 2) - 20
+	Local aTypes     := WmProgTypes()
+
+	oSay := TSay():New(6, 10, ;
+		{|| "Informe as novas funcoes e os tipos de programa"}, ;
+		oPanel,, oFontTitle,,,, .T., CLR_BLUE,, 340, 12)
+
+	oSay := TSay():New(22, 10, ;
+		{|| "Use um prefixo ou sufixo para preencher todas as novas funcoes."}, ;
+		oPanel,, oFontBody,,,, .T., CLR_BLACK,, 340, 10)
+
+	oSay := TSay():New(36, 10, {|| "Prefixo:"}, ;
+		oPanel,, oFontBody,,,, .T., CLR_BLACK,, 42, 10)
+
+	@ 34, 55 GET oGetPrefix VAR cWmPrefix PICTURE "@!" ;
+		VALID WmAffix(1, oGetPrefix, oGetSuffix) ;
+		SIZE 105, 10 OF oPanel PIXEL
+
+	oSay := TSay():New(36, 180, {|| "Sufixo:"}, ;
+		oPanel,, oFontBody,,,, .T., CLR_BLACK,, 42, 10)
+
+	@ 34, 225 GET oGetSuffix VAR cWmSuffix PICTURE "@!" ;
+		VALID WmAffix(2, oGetPrefix, oGetSuffix) ;
+		SIZE 105, 10 OF oPanel PIXEL
+
+	oGridPanel := TPanel():New(54, 10, "", oPanel,,,, ;
+		CLR_BLACK, CLR_WHITE, nGridWidth, 140, .F., .F.)
+
+	oWmTgtBrowse := FWBrowse():New()
+	oWmTgtBrowse:SetOwner(oGridPanel)
+	oWmTgtBrowse:SetDataArray()
+	oWmTgtBrowse:SetArray(aWmTargets)
+	oWmTgtBrowse:DisableFilter()
+	oWmTgtBrowse:DisableConfig()
+	oWmTgtBrowse:DisableReport()
+	oWmTgtBrowse:DisableSeek()
+	oWmTgtBrowse:DisableSaveConfig()
+
+	oWmTgtBrowse:AddColumn({"Funcao atual", ;
+		{|| WmBrwVal(aWmTargets, oWmTgtBrowse, 1)}, ;
+		"C", "@!", 1, 28, 0, .F.})
+
+	oWmTgtBrowse:AddColumn({"Nova funcao", ;
+		{|| WmBrwVal(aWmTargets, oWmTgtBrowse, 2)}, ;
+		"C", "@!", 1, 32, 0, .T., ;
+		{|| WmValTgt()}, .F., Nil, ;
+		"aWmTargets[oWmTgtBrowse:nAt,2]", Nil, ;
+		.F., .T., {}, "WMTARGET", .F.})
+
+	oWmTgtBrowse:AddColumn({"Tipo de programa", ;
+		{|| WmBrwVal(aWmTargets, oWmTgtBrowse, 3)}, ;
+		"C", "", 1, 34, 0, .T., ;
+		{|| WmValType()}, .F., Nil, ;
+		"aWmTargets[oWmTgtBrowse:nAt,3]", Nil, ;
+		.F., .T., aTypes, "WMTYPE", .F.})
+
+	oWmTgtBrowse:Activate()
+Return Nil
+
+/*/{Protheus.doc} WmNextMenu
+Monta uma linha por funcao presente nas ocorrencias selecionadas.
+/*/
+Static Function WmNextMenu(aMenus)
+	Local aOld     := AClone(aWmTargets)
+	Local aNew     := {}
+	Local cSource  := ""
+	Local cTarget  := ""
+	Local nMenu    := 0
+	Local nOld     := 0
+
+	For nMenu := 1 To Len(aMenus)
+		If aMenus[nMenu, 1]
+			cSource := Upper(AllTrim(aMenus[nMenu, 2]))
+
+			If !Empty(cSource) .And. ;
+					AScan(aNew, {|aMap| aMap[1] == cSource}) == 0
+
+				nOld := AScan(aOld, ;
+					{|aMap| Upper(AllTrim(aMap[1])) == cSource})
+
+				If nOld > 0
+					AAdd(aNew, AClone(aOld[nOld]))
+				Else
+					cTarget := WmAffixNm(cSource, cWmPrefix, cWmSuffix)
+
+					If !WmValidProg(cTarget)
+						MsgStop("O prefixo ou sufixo informado gera uma " + ;
+							"funcao invalida:" + CRLF + cTarget, ;
+							"Nova funcao invalida")
+						Return .F.
+					EndIf
+
+					AAdd(aNew, {cSource, PadR(cTarget, 128), "01"})
+				EndIf
+			EndIf
+		EndIf
+	Next nMenu
+
+	If Empty(aNew)
+		MsgStop("Selecione ao menos uma ocorrencia para continuar.", ;
+			"Ocorrencia obrigatoria")
+		Return .F.
+	EndIf
+
+	ASize(aWmTargets, 0)
+	AEval(aNew, {|aMap| AAdd(aWmTargets, aMap)})
+	WmRefBrw(aWmTargets, oWmTgtBrowse)
+Return .T.
+
+/*/{Protheus.doc} WmAffix
+Aplica o prefixo ou sufixo a todas as novas funcoes no VALID do GET.
+/*/
+Static Function WmAffix(nMode, oGetPrefix, oGetSuffix)
+	Local aTargets := {}
+	Local cPrefix  := Upper(AllTrim(cWmPrefix))
+	Local cSuffix  := Upper(AllTrim(cWmSuffix))
+	Local cTarget  := ""
+	Local nTarget  := 0
+
+	If nMode == 1 .And. !Empty(cPrefix)
+		cSuffix := ""
+	ElseIf nMode == 2 .And. !Empty(cSuffix)
+		cPrefix := ""
+	EndIf
+
+	For nTarget := 1 To Len(aWmTargets)
+		cTarget := WmAffixNm(aWmTargets[nTarget, 1], cPrefix, cSuffix)
+
+		If !WmValidProg(cTarget)
+			MsgStop("O prefixo ou sufixo informado gera uma " + ;
+				"funcao invalida:" + CRLF + cTarget, ;
+				"Nova funcao invalida")
+			Return .F.
+		EndIf
+
+		AAdd(aTargets, PadR(cTarget, 128))
+	Next nTarget
+
+	cWmPrefix := PadR(cPrefix, Len(cWmPrefix))
+	cWmSuffix := PadR(cSuffix, Len(cWmSuffix))
+
+	For nTarget := 1 To Len(aWmTargets)
+		aWmTargets[nTarget, 2] := aTargets[nTarget]
+	Next nTarget
+
+	If ValType(oGetPrefix) == "O"
+		oGetPrefix:CtrlRefresh()
+	EndIf
+
+	If ValType(oGetSuffix) == "O"
+		oGetSuffix:CtrlRefresh()
+	EndIf
+
+	If ValType(oWmTgtBrowse) == "O"
+		oWmTgtBrowse:Refresh(.T.)
+	EndIf
+Return .T.
+
+/*/{Protheus.doc} WmAffixNm
+Monta o novo nome de funcao com o afixo ativo.
+/*/
+Static Function WmAffixNm(cSource, cPrefix, cSuffix)
+	Local cName := Upper(AllTrim(cSource))
+	Local cPre  := Upper(AllTrim(cPrefix))
+	Local cSuf  := Upper(AllTrim(cSuffix))
+
+	If !Empty(cPre)
+		cName := cPre + cName
+	ElseIf !Empty(cSuf)
+		cName += cSuf
+	EndIf
+Return cName
+
+/*/{Protheus.doc} WmValTgt
+Valida e normaliza a nova funcao editada diretamente no browse.
+/*/
+Static Function WmValTgt()
+	Local nAt     := WmBrwAt(aWmTargets, oWmTgtBrowse)
+	Local cTarget := ""
+
+	If nAt > 0
+		cTarget := Upper(AllTrim(aWmTargets[nAt, 2]))
+
+		If !WmValidProg(cTarget)
+			MsgStop("Informe um nome de funcao AdvPL valido.", ;
+				"Nova funcao invalida")
+			Return .F.
+		EndIf
+
+		aWmTargets[nAt, 2] := PadR(cTarget, 128)
+	EndIf
+Return .T.
+
+/*/{Protheus.doc} WmValType
+Valida o tipo selecionado na terceira coluna do browse.
+/*/
+Static Function WmValType()
+	Local nAt := WmBrwAt(aWmTargets, oWmTgtBrowse)
+
+	If nAt > 0 .And. !WmTypeOk(aWmTargets[nAt, 3])
+		MsgStop("Selecione um tipo de programa valido.", ;
+			"Tipo de programa")
+		Return .F.
+	EndIf
+Return .T.
+
+/*/{Protheus.doc} WmValTgts
+Valida todas as linhas antes de concluir o quarto passo.
+/*/
+Static Function WmValTgts()
+	Local cSource := ""
+	Local cTarget := ""
+	Local nTarget := 0
+
+	If Empty(aWmTargets)
+		MsgStop("Nao ha funcoes selecionadas para processar.", ;
+			"Funcoes obrigatorias")
+		Return .F.
+	EndIf
+
+	For nTarget := 1 To Len(aWmTargets)
+		cSource := AllTrim(aWmTargets[nTarget, 1])
+		cTarget := Upper(AllTrim(aWmTargets[nTarget, 2]))
+
+		If !WmValidProg(cTarget)
+			MsgStop("Informe uma nova funcao valida para:" + CRLF + ;
+				cSource, "Nova funcao invalida")
+			Return .F.
+		EndIf
+
+		If !WmTypeOk(aWmTargets[nTarget, 3])
+			MsgStop("Selecione o tipo de programa para:" + CRLF + ;
+				cSource, "Tipo de programa")
+			Return .F.
+		EndIf
+
+		aWmTargets[nTarget, 2] := PadR(cTarget, 128)
+	Next nTarget
+
+	If ValType(oWmTgtBrowse) == "O"
+		oWmTgtBrowse:Refresh(.T.)
+	EndIf
+Return .T.
+
+/*/{Protheus.doc} WmTypeOk
+Confirma se o codigo corresponde a uma opcao de tipo disponivel.
+/*/
+Static Function WmTypeOk(cType)
+	Local cCode := AllTrim(cValToChar(cType))
+Return AScan(WmProgTypes(), ;
+	{|cOption| Left(cOption, At("=", cOption) - 1) == cCode}) > 0
+
+/*/{Protheus.doc} WmProgTypes
+Retorna os tipos de programa aceitos pelo cadastro de menus.
+/*/
+Static Function WmProgTypes()
+Return {"01=Funcao Protheus", ;
+	"02=Relatorio SIGRPM", ;
+	"03=Funcao de Usuario", ;
+	"04=Funcao Template", ;
+	"05=Relatorio Crystal", ;
+	"06=Cons. Generica Relacional", ;
+	"07=Protheus Report", ;
+	"08=Relatorio iReport", ;
+	"09=RM Report", ;
+	"10=Smart View"}
 
 /*/{Protheus.doc} WmNextOrig
 Valida a origem, pesquisa as ocorrencias e atualiza o terceiro passo.

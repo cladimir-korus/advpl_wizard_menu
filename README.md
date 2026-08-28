@@ -4,7 +4,7 @@ Assistente em AdvPL para localizar referências de programas em múltiplos menus
 
 O projeto é desenvolvido pela Korus Consultoria com a proposta de distribuição gratuita do código original.
 
-> **Status: em desenvolvimento.** A versão atual implementa a seleção da origem, a leitura dos programas, a pesquisa das ocorrências e a seleção dos itens encontrados. O backup e a atualização das tabelas ainda não foram implementados.
+> **Status: em desenvolvimento.** A versão atual implementa a seleção da origem, a leitura dos programas, a pesquisa das ocorrências, a seleção dos itens encontrados e a definição das novas funções. O backup e a atualização das tabelas ainda não foram implementados.
 
 ## Funcionalidades disponíveis
 
@@ -25,10 +25,12 @@ O projeto é desenvolvido pela Korus Consultoria com a proposta de distribuiçã
 - Exclusão dos registros logicamente apagados e dos menus de backup `#BKP_%`.
 - Terceira etapa com as colunas de seleção, programa, menu e localização.
 - Seleção individual e ações para selecionar todos, deselecionar todos e inverter a seleção.
+- Quarta etapa com uma linha por função selecionada e colunas para a função atual, a nova função e o tipo de programa.
+- Edição individual do novo nome da função e do tipo de programa diretamente no browse.
+- Preenchimento em massa dos novos nomes por prefixo ou sufixo.
 
 ## Funcionalidades planejadas
 
-- Informar a nova referência que substituirá o programa atual.
 - Gerar backup completo antes da alteração.
 - Atualizar somente as ocorrências confirmadas.
 - Executar as alterações de forma transacional.
@@ -42,7 +44,8 @@ U_UWIZMENU
    └─ executa U_WIZMENU
       ├─ Passo 1: apresentação
       ├─ Passo 2: seleção e validação da origem
-      └─ Passo 3: pesquisa e seleção das ocorrências nos menus
+      ├─ Passo 3: pesquisa e seleção das ocorrências nos menus
+      └─ Passo 4: definição das novas funções e dos tipos de programa
 ```
 
 `UWizMenu()` funciona como inicializador. A rotina principal do assistente é `WIZMENU()`, publicada no RPO como `U_WIZMENU`.
@@ -66,6 +69,7 @@ Para as funcionalidades futuras de alteração, também serão necessários aces
 4. Em um ambiente já preparado, a rotina principal pode ser chamada por `U_WIZMENU`.
 5. Escolha exatamente uma origem e avance para pesquisar os menus.
 6. No terceiro passo, marque as ocorrências desejadas individualmente ou use os três botões de seleção em massa.
+7. No quarto passo, informe os novos nomes individualmente ou aplique um prefixo/sufixo e selecione o tipo de cada programa.
 
 Nesta versão, as tabelas de menu são apenas consultadas. A conclusão do assistente não altera registros.
 
@@ -98,6 +102,18 @@ Cada ocorrência é apresentada separadamente, mesmo quando o mesmo programa apa
 | Localização | Caminho formado pelas descrições dos itens, como `Atualizações > Cadastros > Produtos`. |
 
 As ações do browse alteram apenas a marca em memória; não atualizam as tabelas.
+
+## Definição das novas funções
+
+O quarto passo consolida, sem duplicidade, as funções presentes nas ocorrências marcadas. O browse contém:
+
+| Coluna | Conteúdo |
+| --- | --- |
+| Função atual | Nome encontrado nas ocorrências selecionadas no passo anterior. |
+| Nova função | Nome de destino editável, inicialmente preenchido com a função atual. |
+| Tipo de programa | Tipo editável por uma lista com as opções suportadas pelo cadastro de menus. |
+
+Ao validar um prefixo, ele é acrescentado antes do nome de todas as funções e o sufixo é limpo. Ao validar um sufixo, ele é acrescentado depois do nome e o prefixo é limpo. Se ambos forem deixados vazios, os nomes de destino voltam a receber os nomes atuais. Os identificadores gerados e os valores editados diretamente no browse são validados antes da conclusão.
 
 ## Modelo de dados dos menus
 
